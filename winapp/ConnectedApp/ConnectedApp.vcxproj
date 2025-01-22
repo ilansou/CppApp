@@ -146,7 +146,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CommonObject.h" />
+    <ClInclude Include="CommonObjects.h" />
     <ClInclude Include="DownloadThread.h" />
     <ClInclude Include="DrawThread.h" />
   </ItemGroup>

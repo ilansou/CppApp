@@ -11,6 +11,7 @@
 #include "imgui_impl_dx11.h"
 #include <d3d11.h>
 #include <tchar.h>
+#include "GuiMain.h"
 
 // Data
 static ID3D11Device* g_pd3dDevice = nullptr;
@@ -28,7 +29,7 @@ void CleanupRenderTarget();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 // Main code
-int GuiMain(int, const char**)
+int GuiMain(drawcallback drawfunction, void* obj_ptr)
 {
     // Create application window
     //ImGui_ImplWin32_EnableDpiAwareness();
@@ -159,7 +160,7 @@ int GuiMain(int, const char**)
                 show_another_window = false;
             ImGui::End();
         }
-        //call_display_data();
+        
         // Rendering
         ImGui::Render();
         const float clear_color_with_alpha[4] = { clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w };
