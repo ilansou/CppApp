@@ -1,5 +1,5 @@
 #pragma once
-#include "CommonObject.h"
+#include "CommonObjects.h"
 
 class DrawThread
 {
