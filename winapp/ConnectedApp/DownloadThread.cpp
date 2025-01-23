@@ -24,6 +24,9 @@ void DownloadThread::operator()(CommonObjects& common) {
         ///common.filtered_movies = common.movies; 
         if (!common.movies.empty())
             common.data_ready = true;
+	}
+    else {
+        std::cerr << "Failed to fetch movies. Error code: " << res->status << std::endl;
     }
 }
 

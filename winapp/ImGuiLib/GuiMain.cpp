@@ -11,7 +11,16 @@
 #include "imgui_impl_dx11.h"
 #include <d3d11.h>
 #include <tchar.h>
+#include <string>
 #include "GuiMain.h"
+#include <thread>
+#include <chrono>
+using namespace std::chrono_literals;
+#include <vector>
+#include <ranges>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 // Data
 static ID3D11Device* g_pd3dDevice = nullptr;
@@ -21,12 +30,92 @@ static bool                     g_SwapChainOccluded = false;
 static UINT                     g_ResizeWidth = 0, g_ResizeHeight = 0;
 static ID3D11RenderTargetView* g_mainRenderTargetView = nullptr;
 
+// Simple helper function to load an image into a DX11 texture with common settings
+// Use like this:
+//int my_image_width = 0;
+//int my_image_height = 0;
+//ID3D11ShaderResourceView* my_texture = NULL;
+//bool ret = LoadTextureFromFile("../../MyImage01.jpg", &my_texture, &my_image_width, &my_image_height);
+//IM_ASSERT(ret);
+bool LoadTextureFromFile(const char* filename, ID3D11ShaderResourceView** out_srv, int* out_width, int* out_height)
+{
+    // Load from disk into a raw RGBA buffer
+    int image_width = 0;
+    int image_height = 0;
+    unsigned char* image_data = stbi_load(filename, &image_width, &image_height, NULL, 4);
+    if (image_data == NULL)
+        return false;
+
+    // Create texture
+    D3D11_TEXTURE2D_DESC desc;
+    ZeroMemory(&desc, sizeof(desc));
+    desc.Width = image_width;
+    desc.Height = image_height;
+    desc.MipLevels = 1;
+    desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    desc.CPUAccessFlags = 0;
+
+    ID3D11Texture2D* pTexture = NULL;
+    D3D11_SUBRESOURCE_DATA subResource;
+    subResource.pSysMem = image_data;
+    subResource.SysMemPitch = desc.Width * 4;
+    subResource.SysMemSlicePitch = 0;
+    g_pd3dDevice->CreateTexture2D(&desc, &subResource, &pTexture);
+
+    // Create texture view
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+    ZeroMemory(&srvDesc, sizeof(srvDesc));
+    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = desc.MipLevels;
+    srvDesc.Texture2D.MostDetailedMip = 0;
+    g_pd3dDevice->CreateShaderResourceView(pTexture, &srvDesc, out_srv);
+    pTexture->Release();
+
+    *out_width = image_width;
+    *out_height = image_height;
+    stbi_image_free(image_data);
+
+    return true;
+}
+
 // Forward declarations of helper functions
 bool CreateDeviceD3D(HWND hWnd);
 void CleanupDeviceD3D();
 void CreateRenderTarget();
 void CleanupRenderTarget();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+//RTL strings
+// Function to determine the length of the UTF-8 character
+size_t utf8_char_length(char c) {
+    if ((c & 0x80) == 0x00) return 1; // 1-byte character
+    if ((c & 0xE0) == 0xC0) return 2; // 2-byte character
+    if ((c & 0xF0) == 0xE0) return 3; // 3-byte character
+    if ((c & 0xF8) == 0xF0) return 4; // 4-byte character
+    return 1; // Should not happen, treat as 1-byte character
+}
+
+// Function to reverse a UTF-8 string
+std::string reverse_utf8(const std::string_view input) {
+    std::vector<std::string_view> characters;
+    size_t i = 0;
+
+    while (i < input.size()) {
+        size_t char_len = utf8_char_length(input[i]);
+        characters.push_back(input.substr(i, char_len));
+        i += char_len;
+    }
+
+    // Reverse the order of the characters and concatenate them using ranges and views
+    auto reversed_view = characters | std::views::reverse | std::views::join;
+
+    return std::string(reversed_view.begin(), reversed_view.end());
+}
 
 // Main code
 int GuiMain(drawcallback drawfunction, void* obj_ptr)
@@ -79,6 +168,15 @@ int GuiMain(drawcallback drawfunction, void* obj_ptr)
     //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
     //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
     //IM_ASSERT(font != nullptr);
+    // If the font contains Hebrew glyphs, you need to specify the ranges
+    static const ImWchar ranges[] =
+    {
+        0x0020, 0x00FF, // Basic Latin + Latin Supplement
+        0x0590, 0x05FF, // Hebrew
+        0,
+    };
+    ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\alger.ttf", 14.0f, nullptr, &ranges[0]);
+    IM_ASSERT(font != nullptr);
 
     // Our state
     bool show_demo_window = true;
@@ -124,7 +222,10 @@ int GuiMain(drawcallback drawfunction, void* obj_ptr)
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+        drawfunction(obj_ptr);
+
+        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()!
+        // You can browse its code to learn more about Dear ImGui!).
         if (show_demo_window)
             ImGui::ShowDemoWindow(&show_demo_window);
 
@@ -136,14 +237,25 @@ int GuiMain(drawcallback drawfunction, void* obj_ptr)
             ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
 
             ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+            // Text to be displayed RTL (assuming Hebrew)
+              // Allocate temporary string for reversed characters
+
+            static std::string_view text = (char*)u8" טקסט בעברית ";
+            ImGui::Text(text.data());
+            static std::string reversedText = reverse_utf8(text);
+
+            ImGui::Text("%s", reversedText.c_str());
             ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
             ImGui::Checkbox("Another Window", &show_another_window);
 
             ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
             ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
 
-            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+            if (ImGui::Button("Button")) {                           // Buttons return true when clicked (most widgets return true when edited/activated)
                 counter++;
+                std::this_thread::sleep_for(4ms);
+            }
+            ImGui::SetItemTooltip("I am a tooltip");
             ImGui::SameLine();
             ImGui::Text("counter = %d", counter);
 
@@ -160,7 +272,7 @@ int GuiMain(drawcallback drawfunction, void* obj_ptr)
                 show_another_window = false;
             ImGui::End();
         }
-        
+
         // Rendering
         ImGui::Render();
         const float clear_color_with_alpha[4] = { clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w };

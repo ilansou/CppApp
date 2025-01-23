@@ -7,8 +7,7 @@
 #include "DrawThread.h"
 #include "DownloadThread.h"
 
-int main()
-{
+int main() {
     CommonObjects common;
     DrawThread draw;
     auto draw_th = std::jthread([&] {draw(common); });
