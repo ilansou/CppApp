@@ -7,6 +7,7 @@
 #include "DrawThread.h"
 #include "DownloadThread.h"
 
+
 int main() {
     CommonObjects common;
     DrawThread draw;
@@ -17,6 +18,8 @@ int main() {
     std::cout << "running...\n";
     down_th.join();
     draw_th.join();
+
+	return 0;
 }
 
 //int main() {

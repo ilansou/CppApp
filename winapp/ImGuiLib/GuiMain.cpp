@@ -118,6 +118,7 @@ std::string reverse_utf8(const std::string_view input) {
 }
 
 // Main code
+
 int GuiMain(drawcallback drawfunction, void* obj_ptr)
 {
     // Create application window
@@ -172,10 +173,10 @@ int GuiMain(drawcallback drawfunction, void* obj_ptr)
     static const ImWchar ranges[] =
     {
         0x0020, 0x00FF, // Basic Latin + Latin Supplement
-        0x0590, 0x05FF, // Hebrew
+        0x0590, 0x05FF, // Greek and Coptic
         0,
     };
-    ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\alger.ttf", 14.0f, nullptr, &ranges[0]);
+    ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\alger.ttf", 12.0f, nullptr, &ranges[0]);
     IM_ASSERT(font != nullptr);
 
     // Our state
@@ -385,3 +386,4 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     }
     return ::DefWindowProcW(hWnd, msg, wParam, lParam);
 }
+

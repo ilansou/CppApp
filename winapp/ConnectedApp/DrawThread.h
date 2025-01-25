@@ -5,6 +5,7 @@ class DrawThread
 {
 public:
 	void operator()(CommonObjects& common);
-	//void DrawAppWindow();
+	void CleanupTextureCache();
+	//void DrawAppWindow(void* common_ptr);
 };
 
