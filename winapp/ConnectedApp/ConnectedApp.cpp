@@ -3,9 +3,12 @@
 
 #include <iostream>
 #include <thread>
+#include <mutex>
 #include "CommonObjects.h"
 #include "DrawThread.h"
 #include "DownloadThread.h"
+
+std::mutex mtx;
 
 int main() {
     CommonObjects common;
@@ -15,8 +18,10 @@ int main() {
     auto down_th = std::jthread([&] {down(common); });
     down.SetUrl("http://....");
     std::cout << "running...\n";
-    down_th.join();
-    draw_th.join();
+    /*down_th.join();
+    draw_th.join();*/
+
+	return 0;
 }
 
 //int main() {
