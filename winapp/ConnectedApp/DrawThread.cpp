@@ -37,11 +37,18 @@ void DrawAppWindow(void* common_ptr) {
         common->SortMoviesByReleaseDate();
     }
 
-    
+    // Load and Clear buttons
+    if (ImGui::Button("Load Movies")) {
+        common->LoadMoviesFromFile("movies.txt");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Clear Movies")) {
+        common->ClearMoviesFile("movies.txt");
+    }
 
     if (common->data_ready) {
         // Set up the table with 6 columns (added poster column)
-        if (ImGui::BeginTable("Movies", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+        if (ImGui::BeginTable("Movies", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
             // Set column widths (adjust as needed)
             ImGui::TableSetupColumn("Poster", ImGuiTableColumnFlags_WidthFixed, 200.0f); // Poster column
             ImGui::TableSetupColumn("Title", ImGuiTableColumnFlags_WidthFixed, 170.0f);
@@ -49,6 +56,7 @@ void DrawAppWindow(void* common_ptr) {
             ImGui::TableSetupColumn("Release Date", ImGuiTableColumnFlags_WidthFixed, 120.0f);
             ImGui::TableSetupColumn("Popularity", ImGuiTableColumnFlags_WidthFixed, 80.0f);
             ImGui::TableSetupColumn("Vote Average", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+			ImGui::TableSetupColumn("Actions", ImGuiTableColumnFlags_WidthFixed, 160.0f);
             ImGui::TableHeadersRow();
 
             for (auto& movie : common->filtered_movies) {
@@ -128,6 +136,21 @@ void DrawAppWindow(void* common_ptr) {
                     ImGui::TextColored(ImVec4(0, 1, 0, 1), "%.2f", movie.vote_average);
                 else
                     ImGui::TextColored(ImVec4(1, 0, 0, 1), "%.2f", movie.vote_average);
+
+                // Save column
+                ImGui::TableSetColumnIndex(6);
+                ImGui::PushID(movie.title.c_str()); // Use movie title as a base for the ID
+
+                if (ImGui::Button("Save")) { 
+                    common->SaveMovieToFile(movie);
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Remove")) { 
+                    common->RemoveMovieFile(movie);
+                }
+
+                ImGui::PopID(); // Important: Pop the ID
+
             }
             ImGui::EndTable();
         }
