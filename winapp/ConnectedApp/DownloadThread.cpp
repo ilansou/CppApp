@@ -7,6 +7,9 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <mutex>
+
+extern std::mutex mtx;
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Movie, title, overview, release_date, poster_path, popularity, vote_count, vote_average)
 
@@ -51,7 +54,6 @@ void DownloadThread::operator()(CommonObjects& common) {
                     std::string poster_url = "/t/p/w500" + movie.poster_path; // Full URL for the poster
                     std::string local_path = poster_dir + "/" + GetPosterFilename(movie.poster_path); // Remove leading slash
 
-                    std::cout << "Downloading poster: " << poster_url << std::endl;
                     // Download the poster
                     auto poster_res = img_cli.Get(poster_url.c_str());
                     if (poster_res && poster_res->status == 200) {
@@ -67,14 +69,19 @@ void DownloadThread::operator()(CommonObjects& common) {
                         movie.poster_path.clear(); // Clear the path if download fails
                     }
                 }
+                {
+                    std::lock_guard<std::mutex> lock(mtx);
+                    common.movie_map[movie.title] = movie;
+                }
+
+                common.FilterMovies(); // Filter movies initially
             }
 
-            // Update the movie map
-            for (const auto& movie : common.movies) {
-                common.movie_map[movie.title] = movie;
-            }
-
-            common.FilterMovies(); // Filter movies initially
+            //// Update the movie map
+            //for (const auto& movie : common.movies) {
+            //    common.movie_map[movie.title] = movie;
+            //}
+            
         }
     }
     else {

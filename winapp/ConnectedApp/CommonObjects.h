@@ -174,13 +174,6 @@ struct CommonObjects {
         }
     }
 
-    //void ClearMoviesFile(const std::string& filename) {
-    //    // Clear the contents of the file
-    //    std::ofstream ofs(filename, std::ofstream::trunc);
-    //    ofs.close();
-    //    std::cout << "Cleared file: " << filename << std::endl;
-    //}
-
     void FilterMovies() {
         filtered_movies.clear();
         std::string lower_query = filter_query;
