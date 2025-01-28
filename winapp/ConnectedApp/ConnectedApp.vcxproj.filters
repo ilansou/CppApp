@@ -24,6 +24,9 @@
     <ClCompile Include="DrawThread.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="MovieService.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DownloadThread.h">
@@ -33,6 +36,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="CommonObjects.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MovieService.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

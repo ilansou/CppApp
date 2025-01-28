@@ -1,7 +1,7 @@
 #pragma once
-#include "CommonObjects.h"
 #include "DrawThread.h"
 #include "GuiMain.h"
+#include "MovieService.h"  
 #include "../../shared/ImGuiSrc/imgui.h"
 #include <string>
 #include <iostream>
@@ -14,6 +14,7 @@ extern std::mutex mtx;
 std::unordered_map<std::string, ID3D11ShaderResourceView*> texture_cache;
 
 void DrawAppWindow(void* common_ptr) {
+	MovieService movieService(*(CommonObjects*)common_ptr);
     auto common = static_cast<CommonObjects*>(common_ptr);
     ImGui::Begin("Connected!");
     ImGui::Text("Trending Movies");
@@ -24,29 +25,29 @@ void DrawAppWindow(void* common_ptr) {
     filter_buffer[sizeof(filter_buffer) - 1] = '\0';
     if (ImGui::InputText("Filter", filter_buffer, sizeof(filter_buffer))) {
         common->filter_query = filter_buffer;
-        common->FilterMovies();
+		movieService.FilterMovies();
     }
 
     // Sorting buttons
     if (ImGui::Button("Sort by Title")) {
-        common->SortMoviesByTitle();
+		movieService.SortMoviesByTitle();
     }
     ImGui::SameLine();
     if (ImGui::Button("Sort by Vote Average")) {
-        common->SortMoviesByVoteAverage();
+		movieService.SortMoviesByVoteAverage();
     }
     ImGui::SameLine();
     if (ImGui::Button("Sort by Release Date")) {
-        common->SortMoviesByReleaseDate();
+		movieService.SortMoviesByReleaseDate();
     }
 
     // Load and Clear buttons
     if (ImGui::Button("Load Movies")) {
-        common->LoadMoviesFromFile("movies.txt");
+		movieService.LoadMoviesFromFile();
     }
     ImGui::SameLine();
     if (ImGui::Button("Clear Movies")) {
-        common->ClearMoviesFile("movies.txt");
+		movieService.ClearMoviesFile();
     }
 
     if (common->data_ready) {
@@ -145,11 +146,11 @@ void DrawAppWindow(void* common_ptr) {
                     ImGui::PushID(movie.title.c_str()); // Use movie title as a base for the ID
 
                     if (ImGui::Button("Save")) {
-                        common->SaveMovieToFile(movie);
+						movieService.SaveMovieToFile(movie);
                     }
                     ImGui::SameLine();
                     if (ImGui::Button("Remove")) {
-                        common->RemoveMovieFile(movie);
+						movieService.RemoveMovieFile(movie);
                     }
 
                     ImGui::PopID(); // Important: Pop the ID

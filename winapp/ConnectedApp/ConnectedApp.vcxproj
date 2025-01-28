@@ -139,6 +139,7 @@
     <ClCompile Include="ConnectedApp.cpp" />
     <ClCompile Include="DownloadThread.cpp" />
     <ClCompile Include="DrawThread.cpp" />
+    <ClCompile Include="MovieService.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ImGuiLib\ImGuiLib.vcxproj">
@@ -149,6 +150,7 @@
     <ClInclude Include="CommonObjects.h" />
     <ClInclude Include="DownloadThread.h" />
     <ClInclude Include="DrawThread.h" />
+    <ClInclude Include="MovieService.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

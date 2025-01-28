@@ -1,6 +1,5 @@
 #pragma once
 #include "DownloadThread.h"
-#include "CommonObjects.h"
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include "httplib.h"
 #include "nlohmann/json.hpp"
@@ -22,6 +21,8 @@ std::string DownloadThread::GetPosterFilename(const std::string& poster_path) {
 }
 
 void DownloadThread::operator()(CommonObjects& common) {
+	MovieService movieService(common);
+
     httplib::Client cli("api.themoviedb.org");
 
     const std::string API_KEY = "fd05a4fdf85e914ec224c2016dc73bd2";
@@ -74,7 +75,7 @@ void DownloadThread::operator()(CommonObjects& common) {
                     common.movie_map[movie.title] = movie;
                 }
 
-                common.FilterMovies(); // Filter movies initially
+				movieService.FilterMovies();
             }
 
             //// Update the movie map
