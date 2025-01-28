@@ -1,5 +1,6 @@
 #pragma once
 #include "CommonObjects.h"
+#include "MovieService.h"
 
 class DownloadThread {
 public:
