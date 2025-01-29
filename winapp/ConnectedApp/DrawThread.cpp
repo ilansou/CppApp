@@ -15,13 +15,6 @@ extern std::mutex mtx;
 // Global texture cache to avoid loading the same texture multiple times
 std::unordered_map<std::string, ID3D11ShaderResourceView*> texture_cache;
 
-void DrawLoadingDots() {
-    double time = ImGui::GetTime();
-    int num_dots = (int)(time * 3.0f) % 4; // Cycle through 0-3 dots
-    std::string dots(num_dots, '.');
-    ImGui::Text("Loading Poster%s", dots.c_str());
-}
-
 
 
 void DrawAppWindow(void* common_ptr) {
@@ -30,6 +23,14 @@ void DrawAppWindow(void* common_ptr) {
     static DownloadThread downloadThread;
 
     ImGui::Begin("Connected!");
+
+
+    auto drawLoadingDots = [](const std::string& text) {
+        double time = ImGui::GetTime();
+        int num_dots = static_cast<int>(time * 3.0f) % 4; // cyrcle of 0-3 dots
+        std::string dots(num_dots, '.');
+        ImGui::Text("%s%s", text.c_str(), dots.c_str());
+        };
 
     // Get the window width to center elements
     float windowWidth = ImGui::GetContentRegionAvail().x;
@@ -172,10 +173,7 @@ void DrawAppWindow(void* common_ptr) {
         ImGui::OpenPopup("LoadingPopup");
 
         if (ImGui::BeginPopupModal("LoadingPopup", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize)) {
-            double time = ImGui::GetTime();
-            int num_dots = (int)(time * 3.0f) % 4; // Cycle through 0-3 dots
-            std::string dots(num_dots, '.');
-            ImGui::Text("Loading Movies%s", dots.c_str());
+            drawLoadingDots("Loading Movies");
             ImGui::EndPopup();
         }
     }
@@ -207,7 +205,7 @@ void DrawAppWindow(void* common_ptr) {
                 if (!movie.poster_path.empty()) {
                     std::string local_poster_path = movie.poster_path;
                     if (!std::filesystem::exists(local_poster_path)) {
-                        DrawLoadingDots();
+                        drawLoadingDots("Loading Posters");
                     }
                     else {
                         if (texture_cache.find(local_poster_path) == texture_cache.end()) {
@@ -223,7 +221,7 @@ void DrawAppWindow(void* common_ptr) {
                     }
                 }
                 else {
-                    DrawLoadingDots();
+                    drawLoadingDots("Loading Posters");
                 }
 
                 // Title Column
