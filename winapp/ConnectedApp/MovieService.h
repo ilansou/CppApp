@@ -1,11 +1,14 @@
 #pragma once
 
 #include "CommonObjects.h"
+#include <vector>
 #include <string>
 
 class MovieService {
 public:
     explicit MovieService(CommonObjects& commonObjects);
+
+    std::vector<Movie> LoadMoviesHelp(const std::string& filename);
 
     void SaveMovieToFile(const Movie& movie, const std::string& filename = "movies.txt");
     void RemoveMovieFile(const Movie& movie, const std::string& filename = "movies.txt");

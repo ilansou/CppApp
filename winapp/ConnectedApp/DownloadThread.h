@@ -1,6 +1,6 @@
 #pragma once
+
 #include "CommonObjects.h"
-#include "MovieService.h"
 
 class DownloadThread {
 public:
@@ -8,5 +8,4 @@ public:
 	void SetUrl(std::string_view new_url);
 private:
 	std::string _download_url;
-	std::string GetPosterFilename(const std::string& poster_path);
 };

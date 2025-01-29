@@ -1,4 +1,3 @@
-#pragma once
 #include "DrawThread.h"
 #include "GuiMain.h"
 #include "MovieService.h"  
@@ -8,14 +7,17 @@
 #include <filesystem>
 #include <mutex>
 
-extern std::mutex mtx;
+extern std::mutex mtx; // External mutex for synchronizing access to shared resources
 
 // Global texture cache to avoid loading the same texture multiple times
 std::unordered_map<std::string, ID3D11ShaderResourceView*> texture_cache;
 
 void DrawAppWindow(void* common_ptr) {
+    // Initialize the MovieService with the common objects
 	MovieService movieService(*(CommonObjects*)common_ptr);
     auto common = static_cast<CommonObjects*>(common_ptr);
+
+    // Begin the ImGui window
     ImGui::Begin("Connected!");
     ImGui::Text("Trending Movies");
 
@@ -25,36 +27,37 @@ void DrawAppWindow(void* common_ptr) {
     filter_buffer[sizeof(filter_buffer) - 1] = '\0';
     if (ImGui::InputText("Filter", filter_buffer, sizeof(filter_buffer))) {
         common->filter_query = filter_buffer;
-		movieService.FilterMovies();
+		movieService.FilterMovies();  // Filter movies based on the input query
     }
 
     // Sorting buttons
     if (ImGui::Button("Sort by Title")) {
-		movieService.SortMoviesByTitle();
+		movieService.SortMoviesByTitle(); // Sort movies by title
     }
     ImGui::SameLine();
     if (ImGui::Button("Sort by Vote Average")) {
-		movieService.SortMoviesByVoteAverage();
+		movieService.SortMoviesByVoteAverage(); // Sort movies by vote average
     }
     ImGui::SameLine();
     if (ImGui::Button("Sort by Release Date")) {
-		movieService.SortMoviesByReleaseDate();
+		movieService.SortMoviesByReleaseDate(); // Sort movies by release date
     }
 
     // Load and Clear buttons
     if (ImGui::Button("Load Movies")) {
-		movieService.LoadMoviesFromFile();
+		movieService.LoadMoviesFromFile(); // Load movies from the file
     }
     ImGui::SameLine();
     if (ImGui::Button("Clear Movies")) {
-		movieService.ClearMoviesFile();
-    }
+		movieService.ClearMoviesFile(); // Clear movies from the file
+    } 
 
+	// Display the table after checking if data is ready
     if (common->data_ready) {
-        // Set up the table with 6 columns (added poster column)
+        // Set up the table with 7 columns
         if (ImGui::BeginTable("Movies", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
-            // Set column widths (adjust as needed)
-            ImGui::TableSetupColumn("Poster", ImGuiTableColumnFlags_WidthFixed, 200.0f); // Poster column
+            // Set column widths 
+            ImGui::TableSetupColumn("Poster", ImGuiTableColumnFlags_WidthFixed, 200.0f); 
             ImGui::TableSetupColumn("Title", ImGuiTableColumnFlags_WidthFixed, 170.0f);
             ImGui::TableSetupColumn("Overview", ImGuiTableColumnFlags_WidthFixed, 400.0f);
             ImGui::TableSetupColumn("Release Date", ImGuiTableColumnFlags_WidthFixed, 120.0f);
@@ -63,6 +66,7 @@ void DrawAppWindow(void* common_ptr) {
             ImGui::TableSetupColumn("Actions", ImGuiTableColumnFlags_WidthFixed, 160.0f);
             ImGui::TableHeadersRow();
 
+            // Lock the mutex to ensure thread-safe access to shared resources
             {
 				std::lock_guard<std::mutex> lock(mtx);
                 for (auto& movie : common->filtered_movies) {
@@ -117,6 +121,7 @@ void DrawAppWindow(void* common_ptr) {
                     else
                         ImGui::TextColored(ImVec4(1, 0, 0, 1), "No overview available.");
 
+                    // Show tooltip with full overview on hover
                     if (ImGui::IsItemHovered()) {
                         ImGui::BeginTooltip();
                         ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
@@ -140,7 +145,7 @@ void DrawAppWindow(void* common_ptr) {
                     else
                         ImGui::TextColored(ImVec4(1, 0, 0, 1), "%.2f", movie.vote_average);
 
-                    // Save column
+					// Actions column (Save and Remove buttons)
                     ImGui::TableSetColumnIndex(6);
                     ImGui::PushID(movie.title.c_str()); // Use movie title as a base for the ID
 
@@ -152,7 +157,7 @@ void DrawAppWindow(void* common_ptr) {
 						movieService.RemoveMovieFile(movie);
                     }
 
-                    ImGui::PopID(); // Important: Pop the ID
+                    ImGui::PopID(); 
                 }
             }
             ImGui::EndTable();
