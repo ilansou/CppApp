@@ -5,6 +5,7 @@
 #include "nlohmann/json.hpp"
 #include <filesystem>
 #include <fstream>
+#include <cstdlib>
 #include <iostream>
 #include <mutex>
 
@@ -12,6 +13,19 @@ extern std::mutex mtx;
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Movie, title, overview, release_date, poster_path, popularity, vote_count, vote_average)
 
+//API=fd05a4fdf85e914ec224c2016dc73bd2
+std::string GetApiKeyFromEnv() {
+    char* api_key = nullptr;
+    size_t len = 0;
+    errno_t err = _dupenv_s(&api_key, &len, "TMDB_API_KEY");
+    if (err || api_key == nullptr) {
+        std::cerr << "Environment variable TMDB_API_KEY is not set." << std::endl;
+        return "";
+    }
+    std::string api_key_str(api_key);
+    free(api_key);
+    return api_key_str;
+}
 
 std::string DownloadThread::GetPosterFilename(const std::string& poster_path) {
     // Extract filename (everything after the last '/')
@@ -25,8 +39,8 @@ void DownloadThread::operator()(CommonObjects& common) {
 
     httplib::Client cli("api.themoviedb.org");
 
-    const std::string API_KEY = "fd05a4fdf85e914ec224c2016dc73bd2";
-
+    //const std::string API_KEY = "fd05a4fdf85e914ec224c2016dc73bd2";
+    const std::string API_KEY = GetApiKeyFromEnv();
     // Set headers for TMDb API
     httplib::Headers headers = {
         {"Authorization", "Bearer " + API_KEY},
@@ -77,12 +91,6 @@ void DownloadThread::operator()(CommonObjects& common) {
 
 				movieService.FilterMovies();
             }
-
-            //// Update the movie map
-            //for (const auto& movie : common.movies) {
-            //    common.movie_map[movie.title] = movie;
-            //}
-            
         }
     }
     else {

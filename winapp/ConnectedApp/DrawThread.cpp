@@ -88,7 +88,6 @@ void DrawAppWindow(void* common_ptr) {
                                 bool ret = LoadTextureFromFile(local_poster_path.c_str(), &my_texture, &my_image_width, &my_image_height);
                                 if (ret) {
                                     // Cache the texture
-
                                     texture_cache[local_poster_path] = my_texture;
                                 }
                                 else {
