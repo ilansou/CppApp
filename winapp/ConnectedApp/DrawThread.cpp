@@ -22,6 +22,8 @@ void DrawLoadingDots() {
     ImGui::Text("Loading Poster%s", dots.c_str());
 }
 
+
+
 void DrawAppWindow(void* common_ptr) {
     MovieService movieService(*(CommonObjects*)common_ptr);
     auto common = static_cast<CommonObjects*>(common_ptr);
@@ -165,6 +167,20 @@ void DrawAppWindow(void* common_ptr) {
             loading = false;
             }, common).detach();
     }
+
+    if (loading) {
+        ImGui::OpenPopup("LoadingPopup");
+
+        if (ImGui::BeginPopupModal("LoadingPopup", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize)) {
+            double time = ImGui::GetTime();
+            int num_dots = (int)(time * 3.0f) % 4; // Cycle through 0-3 dots
+            std::string dots(num_dots, '.');
+            ImGui::Text("Loading Movies%s", dots.c_str());
+            ImGui::EndPopup();
+        }
+    }
+
+
 
     //ImGui::PopStyleColor(3);
     ImGui::PopStyleVar();
