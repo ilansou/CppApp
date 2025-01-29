@@ -25,6 +25,7 @@ void DrawLoadingDots() {
 void DrawAppWindow(void* common_ptr) {
     MovieService movieService(*(CommonObjects*)common_ptr);
     auto common = static_cast<CommonObjects*>(common_ptr);
+    static DownloadThread downloadThread;
 
     ImGui::Begin("Connected!");
 
