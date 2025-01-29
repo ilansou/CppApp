@@ -62,6 +62,7 @@ void DownloadThread::DownloadPoster(Movie& movie, const std::string& poster_dir,
 
 // Thread function to fetch movie list and download posters
 void DownloadThread::operator()(CommonObjects& common) {
+    common.data_ready = false;
     MovieService movieService(common);
 
     httplib::Client cli("https://api.themoviedb.org");
@@ -123,6 +124,7 @@ void DownloadThread::operator()(CommonObjects& common) {
         }
         std::cerr << std::endl;
     }
+    common.data_ready = true;
 }
 
 // Updates the download URL (if needed in the future)

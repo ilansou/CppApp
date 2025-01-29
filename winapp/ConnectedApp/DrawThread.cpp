@@ -129,16 +129,9 @@ void DrawAppWindow(void* common_ptr) {
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f);
 
     // Left Button (Previous)
-    if (ImGui::Button("Previous", buttonSize) && common->page > 1 && !loading) {
+    if (ImGui::Button("Previous", buttonSize) && common->page > 1 && common->data_ready) {
         common->page--;
-        common->data_ready = false;
-        loading = true;
-        std::thread([](CommonObjects* c) {
-            DownloadThread downloadThread;
-            downloadThread(*c);
-            c->data_ready = true;
-            loading = false;
-            }, common).detach();
+        downloadThread(*common);
     }
 
     // Space between elements
@@ -157,25 +150,9 @@ void DrawAppWindow(void* common_ptr) {
     ImGui::SameLine();
 
     // Right Button (Next)
-    if (ImGui::Button("Next", buttonSize) && !loading) {
+    if (ImGui::Button("Next", buttonSize) && common->page < common->total_pages && common->data_ready) {
         common->page++;
-        common->data_ready = false;
-        loading = true;
-        std::thread([](CommonObjects* c) {
-            DownloadThread downloadThread;
-            downloadThread(*c);
-            c->data_ready = true;
-            loading = false;
-            }, common).detach();
-    }
-
-    if (loading) {
-        ImGui::OpenPopup("LoadingPopup");
-
-        if (ImGui::BeginPopupModal("LoadingPopup", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize)) {
-            drawLoadingDots("Loading Movies");
-            ImGui::EndPopup();
-        }
+        downloadThread(*common);
     }
 
 
