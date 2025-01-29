@@ -9,7 +9,6 @@ class DownloadThread {
 public:
     void operator()(CommonObjects& common);
     void SetUrl(std::string_view new_url);
-    //void SearchMovie(CommonObjects& common, const std::string& query);
 
 private:
     std::string _download_url;
