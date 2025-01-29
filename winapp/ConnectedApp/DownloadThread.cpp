@@ -33,11 +33,15 @@ void DownloadThread::operator()(CommonObjects& common) {
         {"Accept", "application/json"}
     };
 
-    auto res = cli.Get("/3/trending/movie/week?api_key=" + API_KEY, headers);
+    auto res = cli.Get("/3/trending/movie/week?api_key=" + API_KEY + "&page=" + std::to_string(common.page), headers);
 
     if (res && res->status == 200) {
         auto json_result = nlohmann::json::parse(res->body);
         common.movies = json_result["results"];
+
+        if (json_result.contains("total_pages")) {
+            common.total_pages = json_result["total_pages"];
+        }
 
         if (!common.movies.empty()) {
             common.data_ready = true;

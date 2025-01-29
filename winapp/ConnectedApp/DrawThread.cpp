@@ -1,60 +1,178 @@
-#pragma once
+﻿#pragma once
 #include "DrawThread.h"
 #include "GuiMain.h"
 #include "MovieService.h"  
+#include "DownloadThread.h"
 #include "../../shared/ImGuiSrc/imgui.h"
 #include <string>
 #include <iostream>
 #include <filesystem>
 #include <mutex>
+#include "../../shared/ImGuiSrc/imgui_internal.h"
 
 extern std::mutex mtx;
 
 // Global texture cache to avoid loading the same texture multiple times
 std::unordered_map<std::string, ID3D11ShaderResourceView*> texture_cache;
 
-void DrawAppWindow(void* common_ptr) {
-	MovieService movieService(*(CommonObjects*)common_ptr);
-    auto common = static_cast<CommonObjects*>(common_ptr);
-    ImGui::Begin("Connected!");
-    ImGui::Text("Trending Movies");
+void DrawLoadingDots() {
+    double time = ImGui::GetTime();
+    int num_dots = (int)(time * 3.0f) % 4; // Cycle through 0-3 dots
+    std::string dots(num_dots, '.');
+    ImGui::Text("Loading Poster%s", dots.c_str());
+}
 
-    // Filter input
+void DrawAppWindow(void* common_ptr) {
+    MovieService movieService(*(CommonObjects*)common_ptr);
+    auto common = static_cast<CommonObjects*>(common_ptr);
+
+    ImGui::Begin("Connected!");
+
+    // Get the window width to center elements
+    float windowWidth = ImGui::GetContentRegionAvail().x;
+
+    // Add spacing above the title
+    ImGui::Spacing();
+    ImGui::Spacing();
+
+    // Center the title
+    float textWidth = ImGui::CalcTextSize("Trending Movies").x;
+    ImGui::SetCursorPosX((windowWidth - textWidth) * 0.5f);
+
+    // Increase font size
+    ImGui::SetWindowFontScale(1.8f);
+
+    // Styled & Colored Title
+    ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.0f, 1.0f), "Trending Movies");  // Orange color for a cinematic feel
+
+    // Reset font scale to default
+    ImGui::SetWindowFontScale(1.0f);
+
+    // Add spacing below the title
+    ImGui::Spacing();
+    ImGui::Separator();  // Adds a horizontal line for a sleek look
+    ImGui::Spacing();
+
+
+    static bool loading = false;
+
+
+    // Centering the Search Bar
+    float searchBarWidth = 450.0f;  // Set fixed width for input box
+    ImGui::SetCursorPosX((windowWidth - searchBarWidth) * 0.5f);  // Center it
+
+    // Search Input Box (Styled)
+    ImGui::PushItemWidth(searchBarWidth);
     char filter_buffer[256];
     strncpy_s(filter_buffer, common->filter_query.c_str(), sizeof(filter_buffer));
     filter_buffer[sizeof(filter_buffer) - 1] = '\0';
-    if (ImGui::InputText("Filter", filter_buffer, sizeof(filter_buffer))) {
+
+    if (ImGui::InputText("Search", filter_buffer, sizeof(filter_buffer))) {
         common->filter_query = filter_buffer;
-		movieService.FilterMovies();
+        movieService.FilterMovies();
     }
+    ImGui::PopItemWidth();
 
-    // Sorting buttons
-    if (ImGui::Button("Sort by Title")) {
-		movieService.SortMoviesByTitle();
+    ImGui::Spacing();  // Add spacing before buttons
+
+    // Sorting Buttons (Centered)
+    float buttonWidth = 100.0f;
+    float totalSortWidth = (buttonWidth * 3) + 40;  // Adjusted for three buttons with spacing
+    ImGui::SetCursorPosX((windowWidth - totalSortWidth) * 0.5f);  // Center sort buttons
+
+    if (ImGui::Button("Sort by Title", ImVec2(buttonWidth, 25))) {
+        movieService.SortMoviesByTitle();
     }
     ImGui::SameLine();
-    if (ImGui::Button("Sort by Vote Average")) {
-		movieService.SortMoviesByVoteAverage();
+    if (ImGui::Button("Sort by Rating", ImVec2(buttonWidth, 25))) {
+        movieService.SortMoviesByVoteAverage();
     }
     ImGui::SameLine();
-    if (ImGui::Button("Sort by Release Date")) {
-		movieService.SortMoviesByReleaseDate();
+    if (ImGui::Button("Sort by Date", ImVec2(buttonWidth, 25))) {
+        movieService.SortMoviesByReleaseDate();
     }
 
-    // Load and Clear buttons
-    if (ImGui::Button("Load Movies")) {
-		movieService.LoadMoviesFromFile();
+    ImGui::Spacing();  // Add spacing before next row
+
+    // Load and Clear Buttons (Centered)
+    float totalLoadWidth = (buttonWidth * 2) + 20;  // Two buttons with spacing
+    ImGui::SetCursorPosX((windowWidth - totalLoadWidth) * 0.5f);  // Center them
+
+    if (ImGui::Button("Load Movies", ImVec2(buttonWidth, 25))) {
+        movieService.LoadMoviesFromFile();
     }
     ImGui::SameLine();
-    if (ImGui::Button("Clear Movies")) {
-		movieService.ClearMoviesFile();
+    if (ImGui::Button("Clear Movies", ImVec2(buttonWidth, 25))) {
+        movieService.ClearMoviesFile();
     }
 
+
+    // Pagination Section
+    ImGui::Spacing();
+    ImVec2 buttonSize(80, 25);
+
+    // Get available width for centering
+    float totalWidth = (buttonSize.x * 2) + 100; // Buttons + spacing
+    float centerPosX = (windowWidth - totalWidth) * 0.5f;
+
+
+    // Set height for pagination block
+    float paginationHeight = 50;  // Ensures all elements are aligned
+    ImGui::Dummy(ImVec2(0, paginationHeight)); // Create space for alignment
+
+    // Move cursor to align everything
+    ImGui::SetCursorPosX(centerPosX);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f);
+
+    // Left Button (Previous)
+    if (ImGui::Button("Previous", buttonSize) && common->page > 1 && !loading) {
+        common->page--;
+        common->data_ready = false;
+        loading = true;
+        std::thread([](CommonObjects* c) {
+            DownloadThread downloadThread;
+            downloadThread(*c);
+            c->data_ready = true;
+            loading = false;
+            }, common).detach();
+    }
+
+    // Space between elements
+    ImGui::SameLine();
+    ImGui::Dummy(ImVec2(20, 0));
+    ImGui::SameLine();
+
+    // Centered "Page: X" with increased font size
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "Page: %d", common->page);
+    ImGui::SetWindowFontScale(1.0f);
+
+    // Space before Next button
+    ImGui::SameLine();
+    ImGui::Dummy(ImVec2(20, 0));
+    ImGui::SameLine();
+
+    // Right Button (Next)
+    if (ImGui::Button("Next", buttonSize) && !loading) {
+        common->page++;
+        common->data_ready = false;
+        loading = true;
+        std::thread([](CommonObjects* c) {
+            DownloadThread downloadThread;
+            downloadThread(*c);
+            c->data_ready = true;
+            loading = false;
+            }, common).detach();
+    }
+
+    //ImGui::PopStyleColor(3);
+    ImGui::PopStyleVar();
+
+    // Movie Table
     if (common->data_ready) {
-        // Set up the table with 6 columns (added poster column)
+        ImGui::Spacing();
         if (ImGui::BeginTable("Movies", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
-            // Set column widths (adjust as needed)
-            ImGui::TableSetupColumn("Poster", ImGuiTableColumnFlags_WidthFixed, 200.0f); // Poster column
+            ImGui::TableSetupColumn("Poster", ImGuiTableColumnFlags_WidthFixed, 200.0f);
             ImGui::TableSetupColumn("Title", ImGuiTableColumnFlags_WidthFixed, 170.0f);
             ImGui::TableSetupColumn("Overview", ImGuiTableColumnFlags_WidthFixed, 400.0f);
             ImGui::TableSetupColumn("Release Date", ImGuiTableColumnFlags_WidthFixed, 120.0f);
@@ -63,100 +181,54 @@ void DrawAppWindow(void* common_ptr) {
             ImGui::TableSetupColumn("Actions", ImGuiTableColumnFlags_WidthFixed, 160.0f);
             ImGui::TableHeadersRow();
 
-            {
-				std::lock_guard<std::mutex> lock(mtx);
-                for (auto& movie : common->filtered_movies) {
-                    ImGui::TableNextRow();
+            std::lock_guard<std::mutex> lock(mtx);
+            for (auto& movie : common->filtered_movies) {
+                ImGui::TableNextRow();
 
-                    // Poster column
-                    ImGui::TableSetColumnIndex(0);
-                    if (!movie.poster_path.empty()) {
-                        // Construct the full local path to the poster
-                        std::string local_poster_path = movie.poster_path;
-
-                        // Check if the file exists
-                        if (!std::filesystem::exists(local_poster_path)) {
-                            ImGui::TextColored(ImVec4(1, 0, 0, 1), "Poster file not found.");
-                        }
-                        else {
-                            // Check if the texture is already cached
-                            if (texture_cache.find(local_poster_path) == texture_cache.end()) {
-                                // Load the texture if it's not in the cache
-                                int my_image_width = 0;
-                                int my_image_height = 0;
-                                ID3D11ShaderResourceView* my_texture = nullptr;
-                                bool ret = LoadTextureFromFile(local_poster_path.c_str(), &my_texture, &my_image_width, &my_image_height);
-                                if (ret) {
-                                    // Cache the texture
-
-                                    texture_cache[local_poster_path] = my_texture;
-                                }
-                                else {
-                                    ImGui::TextColored(ImVec4(1, 0, 0, 1), "Failed to load poster.");
-                                }
-                            }
-
-                            // Display the cached texture
-                            if (texture_cache.find(local_poster_path) != texture_cache.end()) {
-                                ID3D11ShaderResourceView* my_texture = texture_cache[local_poster_path];
-                                ImGui::Image((void*)my_texture, ImVec2(100, 150)); // Adjust size as needed
-                            }
-                        }
+                // Poster Column
+                ImGui::TableSetColumnIndex(0);
+                if (!movie.poster_path.empty()) {
+                    std::string local_poster_path = movie.poster_path;
+                    if (!std::filesystem::exists(local_poster_path)) {
+                        DrawLoadingDots();
                     }
                     else {
-                        ImGui::TextColored(ImVec4(1, 0, 0, 1), "No poster available.");
+                        if (texture_cache.find(local_poster_path) == texture_cache.end()) {
+                            int width = 0, height = 0;
+                            ID3D11ShaderResourceView* texture = nullptr;
+                            if (LoadTextureFromFile(local_poster_path.c_str(), &texture, &width, &height)) {
+                                texture_cache[local_poster_path] = texture;
+                            }
+                        }
+                        if (texture_cache.find(local_poster_path) != texture_cache.end()) {
+                            ImGui::Image((void*)texture_cache[local_poster_path], ImVec2(100, 150));
+                        }
                     }
-
-                    // Title column
-                    ImGui::TableSetColumnIndex(1);
-                    ImGui::Text("%s", movie.title.c_str());
-
-                    // Overview column
-                    ImGui::TableSetColumnIndex(2);
-                    if (!movie.overview.empty())
-                        ImGui::TextWrapped("%s", movie.overview.c_str());
-                    else
-                        ImGui::TextColored(ImVec4(1, 0, 0, 1), "No overview available.");
-
-                    if (ImGui::IsItemHovered()) {
-                        ImGui::BeginTooltip();
-                        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-                        ImGui::TextUnformatted(movie.overview.c_str());
-                        ImGui::PopTextWrapPos();
-                        ImGui::EndTooltip();
-                    }
-
-                    // Release Date column
-                    ImGui::TableSetColumnIndex(3);
-                    ImGui::Text("%s", movie.release_date.c_str());
-
-                    // Popularity column
-                    ImGui::TableSetColumnIndex(4);
-                    ImGui::Text("%.2f", movie.popularity);
-
-                    // Vote Average column
-                    ImGui::TableSetColumnIndex(5);
-                    if (movie.vote_average > 5)
-                        ImGui::TextColored(ImVec4(0, 1, 0, 1), "%.2f", movie.vote_average);
-                    else
-                        ImGui::TextColored(ImVec4(1, 0, 0, 1), "%.2f", movie.vote_average);
-
-                    // Save column
-                    ImGui::TableSetColumnIndex(6);
-                    ImGui::PushID(movie.title.c_str()); // Use movie title as a base for the ID
-
-                    if (ImGui::Button("Save")) {
-						movieService.SaveMovieToFile(movie);
-                    }
-                    ImGui::SameLine();
-                    if (ImGui::Button("Remove")) {
-						movieService.RemoveMovieFile(movie);
-                    }
-
-                    ImGui::PopID(); // Important: Pop the ID
                 }
+                else {
+                    DrawLoadingDots();
+                }
+
+                // Title Column
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("%s", movie.title.c_str());
+
+                // Overview Column
+                ImGui::TableSetColumnIndex(2);
+                ImGui::TextWrapped("%s", movie.overview.empty() ? "No overview available." : movie.overview.c_str());
+
+                // Release Date Column
+                ImGui::TableSetColumnIndex(3);
+                ImGui::Text("%s", movie.release_date.c_str());
+
+                // Vote Average Column
+                ImGui::TableSetColumnIndex(5);
+                ImGui::TextColored(movie.vote_average > 5 ? ImVec4(0, 1, 0, 1) : ImVec4(1, 0, 0, 1), "%.2f", movie.vote_average);
             }
             ImGui::EndTable();
+
+            // "Total Pages"
+            ImGui::Text("Total Pages: %d", common->total_pages);
         }
     }
     ImGui::End();

@@ -26,4 +26,6 @@ struct CommonObjects {
     std::vector<Movie> filtered_movies;
     std::string filter_query;
     std::unordered_map<std::string, Movie> movie_map;
+    int page = 1;
+    int total_pages = 1;
 };
