@@ -4,14 +4,19 @@
 #include <filesystem>
 #include <algorithm>
 #include <cctype>
+#include <ranges>
 #include <iostream>
 
-MovieService::MovieService(CommonObjects& commonObjects) : commonObjects_(commonObjects) {}
+// Constructor for MovieService: takes a reference to CommonObjects and initializes it with the provided data
+MovieService::MovieService(CommonObjects& commonObjects)
+    : commonObjects_(commonObjects) {
+}
 
-void MovieService::SaveMovieToFile(const Movie& movie, const std::string& filename) {
-    // Load existing movies to check if the movie already exists
+// Helper function to load movies from a file
+std::vector<Movie> MovieService::LoadMoviesFromFileHelper(const std::string& filename) {
     std::ifstream infile(filename);
-    std::vector<Movie> existing_movies;
+    std::vector<Movie> movies;
+
     if (infile.is_open()) {
         std::string line;
         while (std::getline(infile, line)) {
@@ -28,19 +33,21 @@ void MovieService::SaveMovieToFile(const Movie& movie, const std::string& filena
             ss >> vote_count;
             ss.ignore();
             ss >> vote_average;
-            existing_movies.push_back({ title, overview, release_date, poster_path, popularity, vote_count, vote_average });
+            movies.push_back({ title, overview, release_date, poster_path, popularity, vote_count, vote_average });
         }
         infile.close();
     }
+    return movies;
+}
 
-    // Check if the movie already exists
-    bool movie_exists = false;
-    for (const auto& existing_movie : existing_movies) {
-        if (existing_movie.title == movie.title) {
-            movie_exists = true;
-            break;
-        }
-    }
+void MovieService::SaveMovieToFile(const Movie& movie, const std::string& filename) {
+    // Load existing movies to check if the movie already exists
+    auto existing_movies = LoadMoviesFromFileHelper(filename);
+
+    // Check if the movie already exists using std::ranges::any_of
+    bool movie_exists = std::ranges::any_of(existing_movies, [&](const Movie& existing_movie) {
+        return existing_movie.title == movie.title;
+        });
 
     // If the movie does not exist, save it to the file
     if (!movie_exists) {
@@ -61,36 +68,12 @@ void MovieService::SaveMovieToFile(const Movie& movie, const std::string& filena
 
 void MovieService::RemoveMovieFile(const Movie& movie, const std::string& filename) {
     // Load existing movies
-    std::ifstream infile(filename);
-    std::vector<Movie> existing_movies;
-    if (infile.is_open()) {
-        std::string line;
-        while (std::getline(infile, line)) {
-            std::stringstream ss(line);
-            std::string title, overview, release_date, poster_path;
-            double popularity, vote_average;
-            int vote_count;
-            std::getline(ss, title, '|');
-            std::getline(ss, overview, '|');
-            std::getline(ss, release_date, '|');
-            std::getline(ss, poster_path, '|');
-            ss >> popularity;
-            ss.ignore();
-            ss >> vote_count;
-            ss.ignore();
-            ss >> vote_average;
-            existing_movies.push_back({ title, overview, release_date, poster_path, popularity, vote_count, vote_average });
-        }
-        infile.close();
-    }
+    auto existing_movies = LoadMoviesFromFileHelper(filename);
 
-    // Remove the movie from the list
-    auto it = std::remove_if(existing_movies.begin(), existing_movies.end(), [&](const Movie& existing_movie) {
+    // Remove the movie from the list using std::erase_if (C++20)
+    std::erase_if(existing_movies, [&](const Movie& existing_movie) {
         return existing_movie.title == movie.title;
         });
-    if (it != existing_movies.end()) {
-        existing_movies.erase(it, existing_movies.end());
-    }
 
     // Save the updated list back to the file
     std::ofstream outfile(filename, std::ios::trunc);
@@ -110,29 +93,8 @@ void MovieService::RemoveMovieFile(const Movie& movie, const std::string& filena
 }
 
 void MovieService::LoadMoviesFromFile(const std::string& filename) {
-    std::ifstream infile(filename);
-    if (infile.is_open()) {
-        commonObjects_.movies.clear();
-        std::string line;
-        while (std::getline(infile, line)) {
-            std::stringstream ss(line);
-            std::string title, overview, release_date, poster_path;
-            double popularity, vote_average;
-            int vote_count;
-            std::getline(ss, title, '|');
-            std::getline(ss, overview, '|');
-            std::getline(ss, release_date, '|');
-            std::getline(ss, poster_path, '|');
-            ss >> popularity;
-            ss.ignore();
-            ss >> vote_count;
-            ss.ignore();
-            ss >> vote_average;
-            commonObjects_.movies.push_back({ title, overview, release_date, poster_path, popularity, vote_count, vote_average });
-        }
-        infile.close();
-        FilterMovies(); // Filter movies after loading
-    }
+    commonObjects_.movies = LoadMoviesFromFileHelper(filename);
+    FilterMovies(); // Filter movies after loading
 }
 
 void MovieService::ClearMoviesFile(const std::string& filename) {
@@ -149,36 +111,36 @@ void MovieService::ClearMoviesFile(const std::string& filename) {
 void MovieService::FilterMovies() {
     commonObjects_.filtered_movies.clear();
     std::string lower_query = commonObjects_.filter_query;
-    std::transform(lower_query.begin(), lower_query.end(), lower_query.begin(), ::tolower);
+    std::ranges::transform(lower_query, lower_query.begin(), ::tolower); // Convert the query to lowercase
 
-    for (const auto& movie : commonObjects_.movies) {
-        std::string lower_title = movie.title;
-        std::transform(lower_title.begin(), lower_title.end(), lower_title.begin(), ::tolower);
+    // Use std::ranges::copy_if to filter movies
+    std::ranges::copy_if(commonObjects_.movies, std::back_inserter(commonObjects_.filtered_movies),
+        [&](const Movie& movie) {
+            std::string lower_title = movie.title;
+            std::ranges::transform(lower_title, lower_title.begin(), ::tolower);
 
-        std::string lower_overview = movie.overview;
-        std::transform(lower_overview.begin(), lower_overview.end(), lower_overview.begin(), ::tolower);
+            std::string lower_overview = movie.overview;
+            std::ranges::transform(lower_overview, lower_overview.begin(), ::tolower);
 
-        if (lower_title.find(lower_query) != std::string::npos ||
-            lower_overview.find(lower_query) != std::string::npos) {
-            commonObjects_.filtered_movies.push_back(movie);
-        }
-    }
+            return lower_title.find(lower_query) != std::string::npos ||
+                lower_overview.find(lower_query) != std::string::npos;
+        });
 }
 
 void MovieService::SortMoviesByTitle() {
-    std::sort(commonObjects_.filtered_movies.begin(), commonObjects_.filtered_movies.end(), [](const Movie& a, const Movie& b) {
+    std::ranges::sort(commonObjects_.filtered_movies, [](const Movie& a, const Movie& b) {
         return a.title < b.title;
         });
 }
 
 void MovieService::SortMoviesByVoteAverage() {
-    std::sort(commonObjects_.filtered_movies.begin(), commonObjects_.filtered_movies.end(), [](const Movie& a, const Movie& b) {
+    std::ranges::sort(commonObjects_.filtered_movies, [](const Movie& a, const Movie& b) {
         return a.vote_average > b.vote_average; // Sort in descending order
         });
 }
 
 void MovieService::SortMoviesByReleaseDate() {
-    std::sort(commonObjects_.filtered_movies.begin(), commonObjects_.filtered_movies.end(), [](const Movie& a, const Movie& b) {
+    std::ranges::sort(commonObjects_.filtered_movies, [](const Movie& a, const Movie& b) {
         return a.release_date > b.release_date; // Sort in descending order (most recent first)
         });
 }

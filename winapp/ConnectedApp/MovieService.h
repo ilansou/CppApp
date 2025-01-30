@@ -19,4 +19,5 @@ public:
 
 private:
     CommonObjects& commonObjects_;
+    std::vector<Movie> LoadMoviesFromFileHelper(const std::string& filename);
 };
