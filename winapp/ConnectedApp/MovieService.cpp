@@ -4,18 +4,15 @@
 #include <filesystem>
 #include <algorithm>
 #include <cctype>
-#include <ranges>
 #include <iostream>
 
-// Constructor for MovieService: takes a reference to CommonObjects and initailizes it with the provided data
 MovieService::MovieService(CommonObjects& commonObjects) : commonObjects_(commonObjects) {}
 
-std::vector<Movie> MovieService::LoadMoviesHelp(const std::string& filename) {
+void MovieService::SaveMovieToFile(const Movie& movie, const std::string& filename) {
+    // Load existing movies to check if the movie already exists
     std::ifstream infile(filename);
-    std::vector<Movie> movies;
-
+    std::vector<Movie> existing_movies;
     if (infile.is_open()) {
-        commonObjects_.movies.clear();
         std::string line;
         while (std::getline(infile, line)) {
             std::stringstream ss(line);
@@ -31,26 +28,23 @@ std::vector<Movie> MovieService::LoadMoviesHelp(const std::string& filename) {
             ss >> vote_count;
             ss.ignore();
             ss >> vote_average;
-            movies.push_back({ title, overview, release_date, poster_path, popularity, vote_count, vote_average });
+            existing_movies.push_back({ title, overview, release_date, poster_path, popularity, vote_count, vote_average });
         }
         infile.close();
-        FilterMovies(); // Filter movies after loading
     }
-    return movies;
-}
 
-void MovieService::SaveMovieToFile(const Movie& movie, const std::string& filename) {
-    // Load existing movies to check if the movie already exists
-    std::ifstream infile(filename); // Open the file for reading
-	std::vector<Movie> existing_movies = LoadMoviesHelp(filename); 
-    
-	bool movie_exists = std::any_of(existing_movies.begin(), existing_movies.end(), [&](const Movie& existing_movie) {
-		return existing_movie.title == movie.title;
-		});
+    // Check if the movie already exists
+    bool movie_exists = false;
+    for (const auto& existing_movie : existing_movies) {
+        if (existing_movie.title == movie.title) {
+            movie_exists = true;
+            break;
+        }
+    }
 
     // If the movie does not exist, save it to the file
     if (!movie_exists) {
-		std::ofstream outfile(filename, std::ios::app); // Open the file in append mode
+        std::ofstream outfile(filename, std::ios::app);
         if (outfile.is_open()) {
             outfile << movie.title << "|" << movie.overview << "|"
                 << movie.release_date << "|" << movie.poster_path << "|"
@@ -68,13 +62,33 @@ void MovieService::SaveMovieToFile(const Movie& movie, const std::string& filena
 void MovieService::RemoveMovieFile(const Movie& movie, const std::string& filename) {
     // Load existing movies
     std::ifstream infile(filename);
-	std::vector<Movie> existing_movies = LoadMoviesHelp(filename);
+    std::vector<Movie> existing_movies;
+    if (infile.is_open()) {
+        std::string line;
+        while (std::getline(infile, line)) {
+            std::stringstream ss(line);
+            std::string title, overview, release_date, poster_path;
+            double popularity, vote_average;
+            int vote_count;
+            std::getline(ss, title, '|');
+            std::getline(ss, overview, '|');
+            std::getline(ss, release_date, '|');
+            std::getline(ss, poster_path, '|');
+            ss >> popularity;
+            ss.ignore();
+            ss >> vote_count;
+            ss.ignore();
+            ss >> vote_average;
+            existing_movies.push_back({ title, overview, release_date, poster_path, popularity, vote_count, vote_average });
+        }
+        infile.close();
+    }
 
     // Remove the movie from the list
-    auto it = std::remove_if(existing_movies.begin(), existing_movies.end(), [&](const Movie& existing_movie) { // Use std::remove_if to find and mark the movie for removal.
+    auto it = std::remove_if(existing_movies.begin(), existing_movies.end(), [&](const Movie& existing_movie) {
         return existing_movie.title == movie.title;
         });
-	if (it != existing_movies.end()) { // If the movie was found and marked for removal
+    if (it != existing_movies.end()) {
         existing_movies.erase(it, existing_movies.end());
     }
 
@@ -95,10 +109,30 @@ void MovieService::RemoveMovieFile(const Movie& movie, const std::string& filena
     }
 }
 
-// Function to load movies from a file
 void MovieService::LoadMoviesFromFile(const std::string& filename) {
-    commonObjects_.movies = LoadMoviesHelp(filename);
-    FilterMovies(); // Filter movies after loading
+    std::ifstream infile(filename);
+    if (infile.is_open()) {
+        commonObjects_.movies.clear();
+        std::string line;
+        while (std::getline(infile, line)) {
+            std::stringstream ss(line);
+            std::string title, overview, release_date, poster_path;
+            double popularity, vote_average;
+            int vote_count;
+            std::getline(ss, title, '|');
+            std::getline(ss, overview, '|');
+            std::getline(ss, release_date, '|');
+            std::getline(ss, poster_path, '|');
+            ss >> popularity;
+            ss.ignore();
+            ss >> vote_count;
+            ss.ignore();
+            ss >> vote_average;
+            commonObjects_.movies.push_back({ title, overview, release_date, poster_path, popularity, vote_count, vote_average });
+        }
+        infile.close();
+        FilterMovies(); // Filter movies after loading
+    }
 }
 
 void MovieService::ClearMoviesFile(const std::string& filename) {
@@ -113,11 +147,11 @@ void MovieService::ClearMoviesFile(const std::string& filename) {
 }
 
 void MovieService::FilterMovies() {
-    commonObjects_.filtered_movies.clear(); // Clear the previous filtered list
-    std::string lower_query = commonObjects_.filter_query; // Get the filter query
-    std::transform(lower_query.begin(), lower_query.end(), lower_query.begin(), ::tolower); // Convert the query to lowercase for case-insensitive search
+    commonObjects_.filtered_movies.clear();
+    std::string lower_query = commonObjects_.filter_query;
+    std::transform(lower_query.begin(), lower_query.end(), lower_query.begin(), ::tolower);
 
-	for (const auto& movie : commonObjects_.movies) {
+    for (const auto& movie : commonObjects_.movies) {
         std::string lower_title = movie.title;
         std::transform(lower_title.begin(), lower_title.end(), lower_title.begin(), ::tolower);
 
@@ -126,25 +160,25 @@ void MovieService::FilterMovies() {
 
         if (lower_title.find(lower_query) != std::string::npos ||
             lower_overview.find(lower_query) != std::string::npos) {
-			commonObjects_.filtered_movies.push_back(movie); // Add the movie to the filtered list if it matches the query
+            commonObjects_.filtered_movies.push_back(movie);
         }
     }
 }
 
 void MovieService::SortMoviesByTitle() {
-    std::ranges::sort(commonObjects_.filtered_movies.begin(), commonObjects_.filtered_movies.end(), [](const Movie& a, const Movie& b) {
+    std::sort(commonObjects_.filtered_movies.begin(), commonObjects_.filtered_movies.end(), [](const Movie& a, const Movie& b) {
         return a.title < b.title;
         });
 }
 
 void MovieService::SortMoviesByVoteAverage() {
-    std::ranges::sort(commonObjects_.filtered_movies.begin(), commonObjects_.filtered_movies.end(), [](const Movie& a, const Movie& b) {
-		return a.vote_average > b.vote_average; // Sort in descending order (highest vote average first)
+    std::sort(commonObjects_.filtered_movies.begin(), commonObjects_.filtered_movies.end(), [](const Movie& a, const Movie& b) {
+        return a.vote_average > b.vote_average; // Sort in descending order
         });
 }
 
 void MovieService::SortMoviesByReleaseDate() {
-    std::ranges::sort(commonObjects_.filtered_movies.begin(), commonObjects_.filtered_movies.end(), [](const Movie& a, const Movie& b) {
+    std::sort(commonObjects_.filtered_movies.begin(), commonObjects_.filtered_movies.end(), [](const Movie& a, const Movie& b) {
         return a.release_date > b.release_date; // Sort in descending order (most recent first)
         });
 }
